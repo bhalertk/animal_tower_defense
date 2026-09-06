@@ -288,6 +288,12 @@
     <script>
         // 鍵盤快捷鍵監聽
         window.addEventListener('keydown', (e) => {
+            const target = e.target;
+            if (target instanceof HTMLInputElement ||
+                target instanceof HTMLSelectElement ||
+                target instanceof HTMLTextAreaElement) {
+                return;
+            }
             if (e.key === '1') {
                 summonUnit('rabbit');
             } else if (e.key === '2') {
@@ -373,6 +379,8 @@
             lionCooldown = 0;
             capybaraCooldown = 0;
             catCooldown = 0;
+            selectedType = null;
+            highlightSelectedButton();
             initGrid();
             
             gameState = 'PLAYING';
@@ -723,7 +731,7 @@
             let finalSpeed = speed;
 
             if (isNoble) {
-                hp = 15; // 貴族猴子改為可受到15次傷害
+                hp = 30;
                 finalSpeed = speed * 0.5; 
             } else if (isBig) {
                 hp = 15; 
@@ -751,6 +759,31 @@
                 isSmall: isSmall,
                 isBig: isBig,
                 isNoble: isNoble
+            });
+
+            if (isNoble) {
+                for (let i = 0; i < 4; i++) {
+                    spawnBigMonkey(speed);
+                }
+            }
+        }
+
+        function spawnBigMonkey(speed) {
+            const r = Math.floor(Math.random() * ROWS);
+            const boardStartX = 120 + COLS * COL_WIDTH;
+            const hp = 18;
+
+            monkeys.push({
+                row: r,
+                x: boardStartX + Math.random() * 50,
+                y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
+                hp: hp,
+                maxHp: hp,
+                speed: speed * 0.5,
+                isHat: false,
+                isSmall: false,
+                isBig: true,
+                isNoble: false
             });
         }
 
@@ -838,7 +871,17 @@
                 ctx.font = '36px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(m.isHat ? '🐒🎩' : '🐵', m.x, m.y);
+                let monkeyEmoji = '🐵';
+                if (m.isNoble) {
+                    monkeyEmoji = '🐵👑';
+                } else if (m.isBig) {
+                    monkeyEmoji = '🦍';
+                } else if (m.isSmall) {
+                    monkeyEmoji = '🙊';
+                } else if (m.isHat) {
+                    monkeyEmoji = '🐒🎩';
+                }
+                ctx.fillText(monkeyEmoji, m.x, m.y);
 
                 const barWidth = 35, barHeight = 5;
                 const hpRatio = m.hp / m.maxHp;
