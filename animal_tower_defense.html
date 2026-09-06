@@ -390,10 +390,13 @@
             updateUI();
         }
 
+        let nobleSpawnedInWave = false;
+
         function startWave(waveNum) {
             currentWave = waveNum;
             currentWaveSpawnLeft = waveConfigs[waveNum - 1].count;
             spawnCounter = 0;
+            nobleSpawnedInWave = false;
             updateStatus(`第 ${waveNum} 回合防守中...`);
         }
 
@@ -704,8 +707,9 @@
             let isSmall = false;
             let isHat = false;
 
-            if (currentWave % 10 === 0 && Math.random() < 0.6) {
+            if ((currentWave === 10 || currentWave === 15) && !nobleSpawnedInWave) {
                 isNoble = true;
+                nobleSpawnedInWave = true;
             } else if (currentWave >= 5) {
                 let bigProbability = 0.1 + (currentWave - 5) * 0.1;
                 if (Math.random() < bigProbability) {
@@ -762,7 +766,8 @@
             });
 
             if (isNoble) {
-                for (let i = 0; i < 4; i++) {
+                const bigCount = currentWave === 10 ? 1 : (currentWave === 15 ? 2 : 0);
+                for (let i = 0; i < bigCount; i++) {
                     spawnBigMonkey(speed);
                 }
             }
