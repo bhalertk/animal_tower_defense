@@ -208,7 +208,7 @@
     <div id="game-container">
         <!-- 上方資訊欄 -->
         <div id="header-bar">
-            <div class="info-item">🛡️ 回合: <span id="ui-wave">1</span> / 10</div>
+            <div class="info-item">🛡️ 回合: <span id="ui-wave">1</span> / 15</div>
             <div class="info-item">🍖 飼料: <span id="ui-food">2</span></div>
             <div class="info-item">📊 狀態: <span id="ui-status">準備開始</span></div>
         </div>
@@ -239,16 +239,7 @@
                         <option value="3.0">3.0 秒</option>
                     </select>
                 </div>
-                <div class="setting-group">
-                    <label for="select-lion-interval">🦁 獅子攻擊:</label>
-                    <select id="select-lion-interval">
-                        <option value="0.5">0.5 秒</option>
-                        <option value="1.0" selected>1.0 秒</option>
-                        <option value="1.5">1.5 秒</option>
-                        <option value="2.0">2.0 秒</option>
-                        <option value="3.0">3.0 秒</option>
-                    </select>
-                </div>
+
             </div>
 
             <!-- 召喚按鈕 -->
@@ -263,12 +254,26 @@
                     <span class="cost">消耗: 2 🍖</span>
                     <div id="cd-lion" class="cooldown-overlay" style="height: 0%;"></div>
                 </button>
+                <button id="btn-capybara" class="btn-summon" onclick="summonUnit('capybara')" disabled>
+                    <span>🐹 召喚水豚</span>
+                    <span class="cost">消耗: 3 🍖</span>
+                    <div id="cd-capybara" class="cooldown-overlay" style="height: 0%;"></div>
+                </button>
+                <button id="btn-truck" class="btn-summon" onclick="summonUnit('truck')" disabled style="background: #1976D2; color: #fff;">
+                    <span>🚚 卡車防線</span>
+                    <span class="cost" style="color: #BBDEFB;">消耗: 4 🍖</span>
+                    <div id="cd-truck" class="cooldown-overlay" style="height: 0%;"></div>
+                </button>
+                <button id="btn-shovel" class="btn-summon" onclick="selectShovel()" style="background: #8D6E63; color: #fff;">
+                    <span>鏟子 ⛏️</span>
+                    <span class="cost" style="color: #FFCCBC;">移除動物</span>
+                </button>
             </div>
         </div>
     </div>
 
     <div id="instructions">
-        💡 <b>更新說明</b>：召喚動物現在有冷卻時間；兔子產資源間隔與獅子攻擊間隔可透過下方選單隨時調整（以 0.5 秒為單位遞增）。
+        💡 <b>更新說明</b>：召喚動物現在有冷卻時間；兔子產資源間隔可透過下方選單隨時調整（以 0.5 秒為單位遞增）。
     </div>
 
     <script>
@@ -297,8 +302,10 @@
         const COOLDOWN_MAX = 90; 
         let rabbitCooldown = 0;
         let lionCooldown = 0;
+        let capybaraCooldown = 0;
+        let truckCooldown = 0;
 
-        // 10個回合配置
+        // 15個回合配置
         const waveConfigs = [
             { count: 3, interval: 140, speed: 0.9 },   // Wave 1
             { count: 5, interval: 130, speed: 1.0 },   // Wave 2
@@ -309,7 +316,12 @@
             { count: 15, interval: 90, speed: 1.5 },   // Wave 7
             { count: 18, interval: 85, speed: 1.6 },   // Wave 8
             { count: 21, interval: 80, speed: 1.7 },   // Wave 9
-            { count: 25, interval: 75, speed: 1.9 }    // Wave 10
+            { count: 25, interval: 75, speed: 1.9 },   // Wave 10
+            { count: 28, interval: 70, speed: 2.0 },   // Wave 11
+            { count: 31, interval: 65, speed: 2.1 },   // Wave 12
+            { count: 35, interval: 60, speed: 2.2 },   // Wave 13
+            { count: 40, interval: 55, speed: 2.3 },   // Wave 14
+            { count: 45, interval: 50, speed: 2.5 }    // Wave 15
         ];
 
         let currentWaveSpawnLeft = 0;
@@ -336,6 +348,8 @@
             particles = [];
             rabbitCooldown = 0;
             lionCooldown = 0;
+            capybaraCooldown = 0;
+            truckCooldown = 0;
             initGrid();
             
             gameState = 'PLAYING';
@@ -357,25 +371,43 @@
             
             if (type === 'rabbit' && rabbitCooldown > 0) return;
             if (type === 'lion' && lionCooldown > 0) return;
+            if (type === 'capybara' && capybaraCooldown > 0) return;
 
-            const cost = type === 'rabbit' ? 1 : 2;
+            let cost = 1;
+            if (type === 'lion') cost = 2;
+            if (type === 'capybara') cost = 3;
+
             if (foodCount >= cost) {
                 selectedType = selectedType === type ? null : type;
                 highlightSelectedButton();
             }
         }
 
+        function selectShovel() {
+            if (gameState !== 'PLAYING') return;
+            selectedType = selectedType === 'shovel' ? null : 'shovel';
+            highlightSelectedButton();
+        }
+
         function highlightSelectedButton() {
             const btnRabbit = document.getElementById('btn-rabbit');
             const btnLion = document.getElementById('btn-lion');
+            const btnCapybara = document.getElementById('btn-capybara');
+            const btnShovel = document.getElementById('btn-shovel');
             
             btnRabbit.style.border = 'none';
             btnLion.style.border = 'none';
+            btnCapybara.style.border = 'none';
+            btnShovel.style.border = 'none';
             
             if (selectedType === 'rabbit') {
                 btnRabbit.style.border = '3px solid #fff';
             } else if (selectedType === 'lion') {
                 btnLion.style.border = '3px solid #fff';
+            } else if (selectedType === 'capybara') {
+                btnCapybara.style.border = '3px solid #fff';
+            } else if (selectedType === 'shovel') {
+                btnShovel.style.border = '3px solid #fff';
             }
         }
 
@@ -391,34 +423,54 @@
             const c = Math.floor((x - boardStartX) / COL_WIDTH);
 
             if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-                if (grid[r][c] === null) {
-                    const cost = selectedType === 'rabbit' ? 1 : 2;
-                    if (foodCount >= cost) {
-                        foodCount -= cost;
-
-                        // 觸發對應冷卻
-                        if (selectedType === 'rabbit') {
-                            rabbitCooldown = COOLDOWN_MAX;
-                        } else {
-                            lionCooldown = COOLDOWN_MAX;
-                        }
-                        
-                        const unit = {
-                            type: selectedType,
-                            row: r,
-                            col: c,
-                            x: boardStartX + c * COL_WIDTH + COL_WIDTH / 2,
-                            y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
-                            timer: 0
-                        };
-
-                        grid[r][c] = unit;
-                        units.push(unit);
-                        createParticles(unit.x, unit.y, '#FFEB3B', 10);
-
+                if (selectedType === 'shovel') {
+                    // 使用鏟子移除該格子的動物
+                    const targetUnit = grid[r][c];
+                    if (targetUnit !== null) {
+                        createParticles(targetUnit.x, targetUnit.y, '#8D6E63', 15);
+                        units.splice(units.indexOf(targetUnit), 1);
+                        grid[r][c] = null;
                         selectedType = null;
                         highlightSelectedButton();
                         updateUI();
+                    }
+                } else {
+                    if (grid[r][c] === null) {
+                        let cost = 1;
+                        if (selectedType === 'lion') cost = 2;
+                        if (selectedType === 'capybara') cost = 3;
+
+                        if (foodCount >= cost) {
+                            foodCount -= cost;
+
+                            // 觸發對應冷卻
+                            if (selectedType === 'rabbit') {
+                                rabbitCooldown = COOLDOWN_MAX;
+                            } else if (selectedType === 'lion') {
+                                lionCooldown = COOLDOWN_MAX;
+                            } else if (selectedType === 'capybara') {
+                                capybaraCooldown = COOLDOWN_MAX;
+                            }
+                            
+                            const unit = {
+                                type: selectedType,
+                                row: r,
+                                col: c,
+                                x: boardStartX + c * COL_WIDTH + COL_WIDTH / 2,
+                                y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
+                                timer: 0,
+                                hp: selectedType === 'capybara' ? 15 : undefined,
+                                maxHp: selectedType === 'capybara' ? 15 : undefined
+                            };
+
+                            grid[r][c] = unit;
+                            units.push(unit);
+                            createParticles(unit.x, unit.y, '#FFEB3B', 10);
+
+                            selectedType = null;
+                            highlightSelectedButton();
+                            updateUI();
+                        }
                     }
                 }
             }
@@ -442,10 +494,11 @@
                 // 更新冷卻時間
                 if (rabbitCooldown > 0) rabbitCooldown--;
                 if (lionCooldown > 0) lionCooldown--;
+                if (capybaraCooldown > 0) capybaraCooldown--;
 
                 // 讀取選單設定的間隔時間 (秒數轉影格數：秒數 * 60)
                 const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
-                const lionIntervalSec = parseFloat(document.getElementById('select-lion-interval').value);
+                const lionIntervalSec = 1.0;
                 const rabbitFrames = Math.round(rabbitIntervalSec * 60);
                 const lionFrames = Math.round(lionIntervalSec * 60);
 
@@ -459,7 +512,7 @@
                         spawnMonkey(config.speed);
                     }
                 } else if (monkeys.length === 0 && currentWaveSpawnLeft === 0) {
-                    if (currentWave < 10) {
+                    if (currentWave < waveConfigs.length) {
                         gameState = 'WAVE_CLEAR';
                         wavePauseTimer = 120;
                         updateStatus(`第 ${currentWave} 回合防守成功！`);
@@ -470,26 +523,31 @@
                 }
 
                 // 2. 處理單位行為
-                units.forEach(unit => {
-                    unit.timer++;
-                    const currentInterval = unit.type === 'rabbit' ? rabbitFrames : lionFrames;
-                    
-                    if (unit.timer >= currentInterval) {
-                        unit.timer = 0;
-                        if (unit.type === 'rabbit') {
-                            foodCount++;
-                            createParticles(unit.x, unit.y, '#8BC34A', 15);
-                        } else if (unit.type === 'lion') {
-                            projectiles.push({
-                                x: unit.x + 20,
-                                y: unit.y,
-                                row: unit.row,
-                                speed: 6,
-                                damage: 1
-                            });
+                for (let i = units.length - 1; i >= 0; i--) {
+                    let unit = units[i];
+                    if (unit.type === 'rabbit' || unit.type === 'lion') {
+                        unit.timer++;
+                        const currentInterval = unit.type === 'rabbit' ? rabbitFrames : lionFrames;
+                        
+                        if (unit.timer >= currentInterval) {
+                            unit.timer = 0;
+                            if (unit.type === 'rabbit') {
+                                foodCount++;
+                                createParticles(unit.x, unit.y, '#8BC34A', 15);
+                            } else if (unit.type === 'lion') {
+                                projectiles.push({
+                                    x: unit.x + 20,
+                                    y: unit.y,
+                                    row: unit.row,
+                                    speed: 6,
+                                    damage: 1
+                                });
+                            }
                         }
+                    } else if (unit.type === 'capybara') {
+                        // 水豚不需要定時行為，主要透過碰撞防禦
                     }
-                });
+                }
 
                 // 3. 子彈與碰撞
                 for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -517,10 +575,35 @@
                     }
                 }
 
-                // 4. 猴子移動與失敗判定
+                // 4. 猴子移動、水豚互動與失敗判定
                 for (let i = monkeys.length - 1; i >= 0; i--) {
                     let m = monkeys[i];
-                    m.x -= m.speed;
+
+                    // 檢查是否碰到同行的水豚
+                    let hitCapybara = false;
+                    for (let u of units) {
+                        if (u.type === 'capybara' && u.row === m.row) {
+                            if (Math.abs(m.x - u.x) < 25) {
+                                hitCapybara = true;
+                                m.x += 45;
+                                if (m.x > canvas.width + 100) m.x = canvas.width + 100;
+
+                                u.hp--;
+                                createParticles(u.x, u.y, '#A1887F', 6);
+
+                                if (u.hp <= 0) {
+                                    grid[u.row][u.col] = null;
+                                    units.splice(units.indexOf(u), 1);
+                                    createParticles(u.x, u.y, '#5D4037', 15);
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!hitCapybara) {
+                        m.x -= m.speed;
+                    }
 
                     if (m.x <= 60) {
                         gameState = 'GAMEOVER';
@@ -552,13 +635,67 @@
         function spawnMonkey(speed) {
             const r = Math.floor(Math.random() * ROWS);
             const boardStartX = 120 + COLS * COL_WIDTH;
+
+            let isNoble = false;
+            let isBig = false;
+            let isSmall = false;
+            let isHat = false;
+
+            if (currentWave % 10 === 0 && Math.random() < 0.6) {
+                isNoble = true;
+            } else if (currentWave >= 5) {
+                let bigProbability = 0.1 + (currentWave - 5) * 0.1;
+                if (Math.random() < bigProbability) {
+                    isBig = true;
+                }
+            }
+
+            if (!isNoble && !isBig && currentWave >= 3) {
+                let smallProbability = 0.15 + (currentWave - 3) * 0.1;
+                if (Math.random() < smallProbability) {
+                    isSmall = true;
+                }
+            }
+
+            if (!isNoble && !isBig && !isSmall) {
+                let hatProbability = 0.1 + (currentWave - 1) * 0.08;
+                if (Math.random() < hatProbability) {
+                    isHat = true;
+                }
+            }
+
+            let hp = 5;
+            let finalSpeed = speed;
+
+            if (isNoble) {
+                hp = 20; // 貴族猴子改為可受到20次傷害
+                finalSpeed = speed * 0.5; 
+            } else if (isBig) {
+                hp = 15; 
+                finalSpeed = speed * 0.5;
+            } else if (isSmall) {
+                hp = 5;
+                finalSpeed = speed * 2; 
+            } else if (isHat) {
+                hp = 8;
+            }
+
+            let hasNobleOnField = monkeys.some(m => m.isNoble);
+            if (hasNobleOnField || isNoble) {
+                hp += 3;
+            }
+
             monkeys.push({
                 row: r,
                 x: boardStartX + Math.random() * 50,
                 y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
-                hp: 2,
-                maxHp: 2,
-                speed: speed
+                hp: hp,
+                maxHp: hp,
+                speed: finalSpeed,
+                isHat: isHat,
+                isSmall: isSmall,
+                isBig: isBig,
+                isNoble: isNoble
             });
         }
 
@@ -608,19 +745,32 @@
                 ctx.font = '36px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(u.type === 'rabbit' ? '🐰' : '🦁', u.x, u.y);
+                let emoji = '🐰';
+                if (u.type === 'lion') emoji = '🦁';
+                if (u.type === 'capybara') emoji = '🐹';
+                ctx.fillText(emoji, u.x, u.y);
 
-                // 進度條
-                const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
-                const lionIntervalSec = parseFloat(document.getElementById('select-lion-interval').value);
-                const maxIntervalFrames = (u.type === 'rabbit' ? rabbitIntervalSec : lionIntervalSec) * 60;
+                if (u.type === 'rabbit' || u.type === 'lion') {
+                    // 進度條
+                    const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
+                    const lionIntervalSec = 1.0;
+                    const maxIntervalFrames = (u.type === 'rabbit' ? rabbitIntervalSec : lionIntervalSec) * 60;
 
-                const barWidth = 40, barHeight = 4;
-                const progress = Math.min(1, u.timer / maxIntervalFrames);
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth, barHeight);
-                ctx.fillStyle = u.type === 'rabbit' ? '#8BC34A' : '#FF9800';
-                ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth * progress, barHeight);
+                    const barWidth = 40, barHeight = 4;
+                    const progress = Math.min(1, u.timer / maxIntervalFrames);
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth, barHeight);
+                    ctx.fillStyle = u.type === 'rabbit' ? '#8BC34A' : '#FF9800';
+                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth * progress, barHeight);
+                } else if (u.type === 'capybara') {
+                    // 水豚血量條
+                    const barWidth = 40, barHeight = 4;
+                    const hpRatio = u.hp / u.maxHp;
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth, barHeight);
+                    ctx.fillStyle = '#4CAF50';
+                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth * hpRatio, barHeight);
+                }
             });
 
             monkeys.forEach(m => {
@@ -632,7 +782,7 @@
                 ctx.font = '36px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('🐵', m.x, m.y);
+                ctx.fillText(m.isHat ? '🐒🎩' : '🐵', m.x, m.y);
 
                 const barWidth = 35, barHeight = 5;
                 const hpRatio = m.hp / m.maxHp;
@@ -663,25 +813,34 @@
 
             const btnRabbit = document.getElementById('btn-rabbit');
             const btnLion = document.getElementById('btn-lion');
+            const btnCapybara = document.getElementById('btn-capybara');
 
             // 檢查冷卻與資源狀態
             const rabbitCanAfford = foodCount >= 1 && rabbitCooldown === 0 && gameState === 'PLAYING';
             const lionCanAfford = foodCount >= 2 && lionCooldown === 0 && gameState === 'PLAYING';
+            const capybaraCanAfford = foodCount >= 3 && capybaraCooldown === 0 && gameState === 'PLAYING';
 
             btnRabbit.disabled = !rabbitCanAfford;
             btnLion.disabled = !lionCanAfford;
+            btnCapybara.disabled = !capybaraCanAfford;
 
             // 更新冷卻遮罩高度
             const cdRabbitPercent = (rabbitCooldown / COOLDOWN_MAX) * 100;
             const cdLionPercent = (lionCooldown / COOLDOWN_MAX) * 100;
+            const cdCapybaraPercent = (capybaraCooldown / COOLDOWN_MAX) * 100;
             document.getElementById('cd-rabbit').style.height = cdRabbitPercent + '%';
             document.getElementById('cd-lion').style.height = cdLionPercent + '%';
+            document.getElementById('cd-capybara').style.height = cdCapybaraPercent + '%';
 
             if (selectedType === 'rabbit' && !rabbitCanAfford) {
                 selectedType = null;
                 highlightSelectedButton();
             }
             if (selectedType === 'lion' && !lionCanAfford) {
+                selectedType = null;
+                highlightSelectedButton();
+            }
+            if (selectedType === 'capybara' && !capybaraCanAfford) {
                 selectedType = null;
                 highlightSelectedButton();
             }
