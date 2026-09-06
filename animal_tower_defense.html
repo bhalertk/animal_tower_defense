@@ -277,12 +277,16 @@
                     <span>鏟子 ⛏️ [5]</span>
                     <span class="cost" style="color: #FFCCBC;">移除動物</span>
                 </button>
+                <button id="btn-speed" class="btn-summon" onclick="toggleGameSpeed()" style="background: #00897B; color: #fff;">
+                    <span>⏩ 遊戲加速 [6]</span>
+                    <span class="cost" style="color: #B2DFDB;">當前: 1.0x</span>
+                </button>
             </div>
         </div>
     </div>
 
     <div id="instructions">
-        💡 <b>更新說明</b>：召喚動物現在有冷卻時間；支援鍵盤快捷鍵：[1] 兔子、[2] 獅子、[3] 水豚、[4] 貓咪、[5] 鏟子。
+        💡 <b>更新說明</b>：召喚動物現在有冷卻時間；支援鍵盤快捷鍵：[1] 兔子、[2] 獅子、[3] 水豚、[4] 貓咪、[5] 鏟子、[6] 遊戲加速。
     </div>
 
     <script>
@@ -304,8 +308,22 @@
                 summonUnit('cat');
             } else if (e.key === '5') {
                 selectShovel();
+            } else if (e.key === '6') {
+                toggleGameSpeed();
             }
         });
+
+        let gameSpeed = 1;
+        function toggleGameSpeed() {
+            if (gameSpeed === 1) gameSpeed = 2;
+            else if (gameSpeed === 2) gameSpeed = 3;
+            else gameSpeed = 1;
+
+            const btnSpeed = document.getElementById('btn-speed');
+            if (btnSpeed) {
+                btnSpeed.querySelector('.cost').innerText = `當前: ${gameSpeed}.0x`;
+            }
+        }
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -379,6 +397,11 @@
             lionCooldown = 0;
             capybaraCooldown = 0;
             catCooldown = 0;
+            gameSpeed = 1;
+            const btnSpeed = document.getElementById('btn-speed');
+            if (btnSpeed) {
+                btnSpeed.querySelector('.cost').innerText = `當前: 1.0x`;
+            }
             selectedType = null;
             highlightSelectedButton();
             initGrid();
@@ -766,7 +789,7 @@
             });
 
             if (isNoble) {
-                const bigCount = currentWave === 10 ? 1 : (currentWave === 15 ? 2 : 0);
+                const bigCount = currentWave === 10 ? 10 : (currentWave === 15 ? 20 : 0);
                 for (let i = 0; i < bigCount; i++) {
                     spawnBigMonkey(speed);
                 }
@@ -972,7 +995,9 @@
         }
 
         function mainLoop() {
-            update();
+            for (let i = 0; i < gameSpeed; i++) {
+                update();
+            }
             draw();
             requestAnimationFrame(mainLoop);
         }
