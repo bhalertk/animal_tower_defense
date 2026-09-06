@@ -240,6 +240,16 @@
                     </select>
                 </div>
                 <div class="setting-group">
+                    <label for="select-cat-interval">🐱 貓咪攻擊:</label>
+                    <select id="select-cat-interval">
+                        <option value="0.5">0.5 秒</option>
+                        <option value="1.0" selected>1.0 秒</option>
+                        <option value="1.5">1.5 秒</option>
+                        <option value="2.0">2.0 秒</option>
+                        <option value="3.0">3.0 秒</option>
+                    </select>
+                </div>
+                <div class="setting-group">
                     <label for="select-lion-interval">🦁 獅子攻擊:</label>
                     <select id="select-lion-interval">
                         <option value="0.5">0.5 秒</option>
@@ -492,7 +502,8 @@
                                 y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
                                 timer: 0,
                                 hp: selectedType === 'capybara' ? 15 : 3,
-                                maxHp: selectedType === 'capybara' ? 15 : 3
+                                maxHp: selectedType === 'capybara' ? 15 : 3,
+                                hitCooldown: 0
                             };
 
                             grid[r][c] = unit;
@@ -532,8 +543,10 @@
                 // 讀取選單設定的間隔時間 (秒數轉影格數：秒數 * 60)
                 const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
                 const lionIntervalSec = parseFloat(document.getElementById('select-lion-interval').value);
+                const catIntervalSec = parseFloat(document.getElementById('select-cat-interval').value);
                 const rabbitFrames = Math.round(rabbitIntervalSec * 60);
                 const lionFrames = Math.round(lionIntervalSec * 60);
+                const catFrames = Math.round(catIntervalSec * 60);
 
                 // 1. 處理猴子生成
                 if (currentWaveSpawnLeft > 0) {
@@ -558,6 +571,7 @@
                 // 2. 處理單位行為
                 for (let i = units.length - 1; i >= 0; i--) {
                     let unit = units[i];
+                    if (unit.hitCooldown > 0) unit.hitCooldown--;
                     if (unit.type === 'rabbit' || unit.type === 'lion') {
                         unit.timer++;
                         const currentInterval = unit.type === 'rabbit' ? rabbitFrames : lionFrames;
@@ -581,8 +595,7 @@
                         // 水豚不需要定時行為，主要透過碰撞防禦
                     } else if (unit.type === 'cat') {
                         unit.timer++;
-                        // 貓咪每秒 (60影格) 發射兩個蘋果
-                        if (unit.timer >= 60) {
+                        if (unit.timer >= catFrames) {
                             unit.timer = 0;
                             projectiles.push({
                                 x: unit.x + 20,
@@ -638,12 +651,13 @@
                     let hitAnimal = false;
                     for (let u of units) {
                         if ((u.type === 'capybara' || u.type === 'rabbit' || u.type === 'lion' || u.type === 'cat') && u.row === m.row) {
-                            if (Math.abs(m.x - u.x) < 25) {
+                            if (u.hitCooldown === 0 && Math.abs(m.x - u.x) < 25) {
                                 hitAnimal = true;
                                 m.x += 45; // 擊退猴子
                                 if (m.x > canvas.width + 100) m.x = canvas.width + 100;
 
                                 u.hp--;
+                                u.hitCooldown = 30;
                                 createParticles(u.x, u.y, '#A1887F', 6);
 
                                 if (u.hp <= 0) {
@@ -810,7 +824,11 @@
                     // 進度條
                     const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
                     const lionIntervalSec = parseFloat(document.getElementById('select-lion-interval').value);
-                    const maxIntervalFrames = (u.type === 'rabbit' ? rabbitIntervalSec : lionIntervalSec) * 60;
+                    const catIntervalSec = parseFloat(document.getElementById('select-cat-interval').value);
+                    const intervalSec = u.type === 'rabbit'
+                        ? rabbitIntervalSec
+                        : u.type === 'lion' ? lionIntervalSec : catIntervalSec;
+                    const maxIntervalFrames = intervalSec * 60;
 
                     const barWidth = 40, barHeight = 4;
                     const progress = Math.min(1, u.timer / maxIntervalFrames);
