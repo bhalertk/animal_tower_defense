@@ -245,27 +245,27 @@
             <!-- 召喚按鈕 -->
             <div class="buttons-row">
                 <button id="btn-rabbit" class="btn-summon" onclick="summonUnit('rabbit')" disabled>
-                    <span>🐰 召喚兔子</span>
+                    <span>🐰 召喚兔子 [1]</span>
                     <span class="cost">消耗: 1 🍖</span>
                     <div id="cd-rabbit" class="cooldown-overlay" style="height: 0%;"></div>
                 </button>
                 <button id="btn-lion" class="btn-summon" onclick="summonUnit('lion')" disabled>
-                    <span>🦁 召喚獅子</span>
+                    <span>🦁 召喚獅子 [2]</span>
                     <span class="cost">消耗: 2 🍖</span>
                     <div id="cd-lion" class="cooldown-overlay" style="height: 0%;"></div>
                 </button>
                 <button id="btn-capybara" class="btn-summon" onclick="summonUnit('capybara')" disabled>
-                    <span>🐹 召喚水豚</span>
+                    <span>🐹 召喚水豚 [3]</span>
                     <span class="cost">消耗: 3 🍖</span>
                     <div id="cd-capybara" class="cooldown-overlay" style="height: 0%;"></div>
                 </button>
-                <button id="btn-truck" class="btn-summon" onclick="summonUnit('truck')" disabled style="background: #1976D2; color: #fff;">
-                    <span>🚚 卡車防線</span>
-                    <span class="cost" style="color: #BBDEFB;">消耗: 4 🍖</span>
-                    <div id="cd-truck" class="cooldown-overlay" style="height: 0%;"></div>
+                <button id="btn-cat" class="btn-summon" onclick="summonUnit('cat')" disabled style="background: #e91e63; color: #fff;">
+                    <span>🐱 召喚貓咪 [4]</span>
+                    <span class="cost" style="color: #f8bbd0;">消耗: 5 🍖</span>
+                    <div id="cd-cat" class="cooldown-overlay" style="height: 0%;"></div>
                 </button>
                 <button id="btn-shovel" class="btn-summon" onclick="selectShovel()" style="background: #8D6E63; color: #fff;">
-                    <span>鏟子 ⛏️</span>
+                    <span>鏟子 ⛏️ [5]</span>
                     <span class="cost" style="color: #FFCCBC;">移除動物</span>
                 </button>
             </div>
@@ -273,10 +273,24 @@
     </div>
 
     <div id="instructions">
-        💡 <b>更新說明</b>：召喚動物現在有冷卻時間；兔子產資源間隔可透過下方選單隨時調整（以 0.5 秒為單位遞增）。
+        💡 <b>更新說明</b>：召喚動物現在有冷卻時間；支援鍵盤快捷鍵：[1] 兔子、[2] 獅子、[3] 水豚、[4] 貓咪、[5] 鏟子。
     </div>
 
     <script>
+        // 鍵盤快捷鍵監聽
+        window.addEventListener('keydown', (e) => {
+            if (e.key === '1') {
+                summonUnit('rabbit');
+            } else if (e.key === '2') {
+                summonUnit('lion');
+            } else if (e.key === '3') {
+                summonUnit('capybara');
+            } else if (e.key === '4') {
+                summonUnit('cat');
+            } else if (e.key === '5') {
+                selectShovel();
+            }
+        });
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -303,7 +317,7 @@
         let rabbitCooldown = 0;
         let lionCooldown = 0;
         let capybaraCooldown = 0;
-        let truckCooldown = 0;
+        let catCooldown = 0;
 
         // 15個回合配置
         const waveConfigs = [
@@ -349,7 +363,7 @@
             rabbitCooldown = 0;
             lionCooldown = 0;
             capybaraCooldown = 0;
-            truckCooldown = 0;
+            catCooldown = 0;
             initGrid();
             
             gameState = 'PLAYING';
@@ -372,10 +386,12 @@
             if (type === 'rabbit' && rabbitCooldown > 0) return;
             if (type === 'lion' && lionCooldown > 0) return;
             if (type === 'capybara' && capybaraCooldown > 0) return;
+            if (type === 'cat' && catCooldown > 0) return;
 
             let cost = 1;
             if (type === 'lion') cost = 2;
             if (type === 'capybara') cost = 3;
+            if (type === 'cat') cost = 5;
 
             if (foodCount >= cost) {
                 selectedType = selectedType === type ? null : type;
@@ -393,11 +409,13 @@
             const btnRabbit = document.getElementById('btn-rabbit');
             const btnLion = document.getElementById('btn-lion');
             const btnCapybara = document.getElementById('btn-capybara');
+            const btnCat = document.getElementById('btn-cat');
             const btnShovel = document.getElementById('btn-shovel');
             
             btnRabbit.style.border = 'none';
             btnLion.style.border = 'none';
             btnCapybara.style.border = 'none';
+            btnCat.style.border = 'none';
             btnShovel.style.border = 'none';
             
             if (selectedType === 'rabbit') {
@@ -406,6 +424,8 @@
                 btnLion.style.border = '3px solid #fff';
             } else if (selectedType === 'capybara') {
                 btnCapybara.style.border = '3px solid #fff';
+            } else if (selectedType === 'cat') {
+                btnCat.style.border = '3px solid #fff';
             } else if (selectedType === 'shovel') {
                 btnShovel.style.border = '3px solid #fff';
             }
@@ -439,6 +459,7 @@
                         let cost = 1;
                         if (selectedType === 'lion') cost = 2;
                         if (selectedType === 'capybara') cost = 3;
+                        if (selectedType === 'cat') cost = 7;
 
                         if (foodCount >= cost) {
                             foodCount -= cost;
@@ -450,6 +471,8 @@
                                 lionCooldown = COOLDOWN_MAX;
                             } else if (selectedType === 'capybara') {
                                 capybaraCooldown = COOLDOWN_MAX;
+                            } else if (selectedType === 'cat') {
+                                catCooldown = COOLDOWN_MAX;
                             }
                             
                             const unit = {
@@ -459,8 +482,8 @@
                                 x: boardStartX + c * COL_WIDTH + COL_WIDTH / 2,
                                 y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
                                 timer: 0,
-                                hp: selectedType === 'capybara' ? 15 : undefined,
-                                maxHp: selectedType === 'capybara' ? 15 : undefined
+                                hp: selectedType === 'capybara' ? 15 : 3,
+                                maxHp: selectedType === 'capybara' ? 15 : 3
                             };
 
                             grid[r][c] = unit;
@@ -495,6 +518,7 @@
                 if (rabbitCooldown > 0) rabbitCooldown--;
                 if (lionCooldown > 0) lionCooldown--;
                 if (capybaraCooldown > 0) capybaraCooldown--;
+                if (catCooldown > 0) catCooldown--;
 
                 // 讀取選單設定的間隔時間 (秒數轉影格數：秒數 * 60)
                 const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
@@ -546,6 +570,28 @@
                         }
                     } else if (unit.type === 'capybara') {
                         // 水豚不需要定時行為，主要透過碰撞防禦
+                    } else if (unit.type === 'cat') {
+                        unit.timer++;
+                        // 貓咪每秒 (60影格) 發射兩個蘋果
+                        if (unit.timer >= 60) {
+                            unit.timer = 0;
+                            projectiles.push({
+                                x: unit.x + 20,
+                                y: unit.y - 8,
+                                row: unit.row,
+                                speed: 6,
+                                damage: 1,
+                                isApple: true
+                            });
+                            projectiles.push({
+                                x: unit.x + 20,
+                                y: unit.y + 8,
+                                row: unit.row,
+                                speed: 6,
+                                damage: 1,
+                                isApple: true
+                            });
+                        }
                     }
                 }
 
@@ -575,17 +621,17 @@
                     }
                 }
 
-                // 4. 猴子移動、水豚互動與失敗判定
+                // 4. 猴子移動、水豚/兔子/獅子/貓咪互動與失敗判定
                 for (let i = monkeys.length - 1; i >= 0; i--) {
                     let m = monkeys[i];
 
-                    // 檢查是否碰到同行的水豚
-                    let hitCapybara = false;
+                    // 檢查是否碰到同行的防禦/攻擊單位 (水豚、兔子、獅子、貓咪)
+                    let hitAnimal = false;
                     for (let u of units) {
-                        if (u.type === 'capybara' && u.row === m.row) {
+                        if ((u.type === 'capybara' || u.type === 'rabbit' || u.type === 'lion' || u.type === 'cat') && u.row === m.row) {
                             if (Math.abs(m.x - u.x) < 25) {
-                                hitCapybara = true;
-                                m.x += 45;
+                                hitAnimal = true;
+                                m.x += 45; // 擊退猴子
                                 if (m.x > canvas.width + 100) m.x = canvas.width + 100;
 
                                 u.hp--;
@@ -601,7 +647,7 @@
                         }
                     }
 
-                    if (!hitCapybara) {
+                    if (!hitAnimal) {
                         m.x -= m.speed;
                     }
 
@@ -668,7 +714,7 @@
             let finalSpeed = speed;
 
             if (isNoble) {
-                hp = 20; // 貴族猴子改為可受到20次傷害
+                hp = 15; // 貴族猴子改為可受到15次傷害
                 finalSpeed = speed * 0.5; 
             } else if (isBig) {
                 hp = 15; 
@@ -748,6 +794,7 @@
                 let emoji = '🐰';
                 if (u.type === 'lion') emoji = '🦁';
                 if (u.type === 'capybara') emoji = '🐹';
+                if (u.type === 'cat') emoji = '🐱';
                 ctx.fillText(emoji, u.x, u.y);
 
                 if (u.type === 'rabbit' || u.type === 'lion') {
