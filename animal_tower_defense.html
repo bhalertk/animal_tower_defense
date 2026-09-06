@@ -239,7 +239,16 @@
                         <option value="3.0">3.0 秒</option>
                     </select>
                 </div>
-
+                <div class="setting-group">
+                    <label for="select-lion-interval">🦁 獅子攻擊:</label>
+                    <select id="select-lion-interval">
+                        <option value="0.5">0.5 秒</option>
+                        <option value="1.0" selected>1.0 秒</option>
+                        <option value="1.5">1.5 秒</option>
+                        <option value="2.0">2.0 秒</option>
+                        <option value="3.0">3.0 秒</option>
+                    </select>
+                </div>
             </div>
 
             <!-- 召喚按鈕 -->
@@ -459,7 +468,7 @@
                         let cost = 1;
                         if (selectedType === 'lion') cost = 2;
                         if (selectedType === 'capybara') cost = 3;
-                        if (selectedType === 'cat') cost = 7;
+                        if (selectedType === 'cat') cost = 5;
 
                         if (foodCount >= cost) {
                             foodCount -= cost;
@@ -522,7 +531,7 @@
 
                 // 讀取選單設定的間隔時間 (秒數轉影格數：秒數 * 60)
                 const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
-                const lionIntervalSec = 1.0;
+                const lionIntervalSec = parseFloat(document.getElementById('select-lion-interval').value);
                 const rabbitFrames = Math.round(rabbitIntervalSec * 60);
                 const lionFrames = Math.round(lionIntervalSec * 60);
 
@@ -800,7 +809,7 @@
                 if (u.type === 'rabbit' || u.type === 'lion') {
                     // 進度條
                     const rabbitIntervalSec = parseFloat(document.getElementById('select-rabbit-interval').value);
-                    const lionIntervalSec = 1.0;
+                    const lionIntervalSec = parseFloat(document.getElementById('select-lion-interval').value);
                     const maxIntervalFrames = (u.type === 'rabbit' ? rabbitIntervalSec : lionIntervalSec) * 60;
 
                     const barWidth = 40, barHeight = 4;
@@ -843,7 +852,7 @@
                 ctx.font = '20px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('🍌', p.x, p.y);
+                ctx.fillText(p.isApple ? '🍎' : '🍌', p.x, p.y);
             });
 
             particles.forEach(pt => {
@@ -861,23 +870,28 @@
             const btnRabbit = document.getElementById('btn-rabbit');
             const btnLion = document.getElementById('btn-lion');
             const btnCapybara = document.getElementById('btn-capybara');
+            const btnCat = document.getElementById('btn-cat');
 
             // 檢查冷卻與資源狀態
             const rabbitCanAfford = foodCount >= 1 && rabbitCooldown === 0 && gameState === 'PLAYING';
             const lionCanAfford = foodCount >= 2 && lionCooldown === 0 && gameState === 'PLAYING';
             const capybaraCanAfford = foodCount >= 3 && capybaraCooldown === 0 && gameState === 'PLAYING';
+            const catCanAfford = foodCount >= 5 && catCooldown === 0 && gameState === 'PLAYING';
 
             btnRabbit.disabled = !rabbitCanAfford;
             btnLion.disabled = !lionCanAfford;
             btnCapybara.disabled = !capybaraCanAfford;
+            btnCat.disabled = !catCanAfford;
 
             // 更新冷卻遮罩高度
             const cdRabbitPercent = (rabbitCooldown / COOLDOWN_MAX) * 100;
             const cdLionPercent = (lionCooldown / COOLDOWN_MAX) * 100;
             const cdCapybaraPercent = (capybaraCooldown / COOLDOWN_MAX) * 100;
+            const cdCatPercent = (catCooldown / COOLDOWN_MAX) * 100;
             document.getElementById('cd-rabbit').style.height = cdRabbitPercent + '%';
             document.getElementById('cd-lion').style.height = cdLionPercent + '%';
             document.getElementById('cd-capybara').style.height = cdCapybaraPercent + '%';
+            document.getElementById('cd-cat').style.height = cdCatPercent + '%';
 
             if (selectedType === 'rabbit' && !rabbitCanAfford) {
                 selectedType = null;
@@ -888,6 +902,10 @@
                 highlightSelectedButton();
             }
             if (selectedType === 'capybara' && !capybaraCanAfford) {
+                selectedType = null;
+                highlightSelectedButton();
+            }
+            if (selectedType === 'cat' && !catCanAfford) {
                 selectedType = null;
                 highlightSelectedButton();
             }
