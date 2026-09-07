@@ -821,7 +821,7 @@
 
                     if (m.isKing) {
                         m.timer++;
-                        if (m.timer >= 180) {
+                        if (m.timer >= 60) {
                             m.timer = 0;
                             spawnNobleMonkey(waveConfigs[currentWave - 1].speed);
                         }
@@ -938,7 +938,7 @@
             let finalSpeed = speed;
 
             if (isKing) {
-                hp = 30;
+                hp = 100;
                 finalSpeed = 0;
             } else if (isInvisible) {
                 hp = 5;
