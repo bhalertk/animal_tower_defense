@@ -965,7 +965,7 @@
 
             monkeys.push({
                 row: r,
-                x: boardStartX + Math.random() * 50,
+                x: isKing ? canvas.width - 60 : boardStartX + Math.random() * 50,
                 y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
                 hp: hp,
                 maxHp: hp,
