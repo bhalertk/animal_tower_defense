@@ -179,6 +179,18 @@
             max-width: 500px;
             line-height: 1.5;
         }
+        #opening-dialogue {
+            max-width: 620px;
+            margin: 0 0 20px;
+            padding: 12px 18px;
+            background: rgba(255, 255, 255, 0.12);
+            border-left: 4px solid #ffca28;
+            border-radius: 8px;
+            color: #fff3e0;
+            font-size: 15px;
+            line-height: 1.8;
+            text-align: left;
+        }
         .btn-action {
             background: #4CAF50;
             color: white;
@@ -193,6 +205,13 @@
         }
         .btn-action:hover {
             background: #43A047;
+        }
+        #endless-btn {
+            margin-left: 10px;
+            background: #1565c0;
+        }
+        #endless-btn:hover {
+            background: #0d47a1;
         }
         .hidden {
             display: none !important;
@@ -214,6 +233,28 @@
             z-index: 5;
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
         }
+        #card-choice {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(33, 33, 33, 0.96);
+            border: 3px solid #ab47bc;
+            border-radius: 14px;
+            padding: 20px;
+            color: #fff;
+            text-align: center;
+            z-index: 6;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+        }
+        #card-choice h3 {
+            margin: 0 0 16px;
+            font-size: 24px;
+        }
+        .card-button {
+            margin: 5px;
+            min-width: 220px;
+        }
         #instructions {
             margin-top: 12px;
             font-size: 12px;
@@ -233,6 +274,7 @@
         <div id="header-bar">
             <div class="info-item">🛡️ 回合: <span id="ui-wave">1</span> / 20</div>
             <div class="info-item">🍖 飼料: <span id="ui-food">2</span></div>
+            <div class="info-item">💥 擊殺: <span id="ui-kills">0</span></div>
             <div class="info-item">📊 狀態: <span id="ui-status">準備開始</span></div>
         </div>
 
@@ -244,9 +286,21 @@
             <div id="overlay">
                 <h2 id="overlay-title">動物保衛戰</h2>
                 <p id="overlay-desc">猴子大軍企圖搶走食物！<br>召喚兔子產資源，獅子發射子彈。<br>可自訂產出與攻擊間隔（支援 0.5 秒起跳）與召喚冷卻時間！</p>
+                <div id="opening-dialogue">
+                    🐵 猴子：「嘿嘿！我們要來搶走所有食物！」<br>
+                    🐰 兔子：「夥伴們，準備好守護防線了嗎？」<br>
+                    🦁 獅子：「放心吧！我們絕不會讓你們得逞！」<br>
+                    🐘 大象：「動物們，集合！一起守住家園！」
+                </div>
                 <button id="overlay-btn" class="btn-action" onclick="startGame()">開始遊戲</button>
+                <button id="endless-btn" class="btn-action hidden" onclick="startEndlessMode()">無盡模式</button>
             </div>
             <div id="wave-transition" class="hidden"></div>
+            <div id="card-choice" class="hidden">
+                <h3>🃏 選擇一張卡牌</h3>
+                <button class="btn-action card-button" onclick="chooseCard('health')">❤️ 動物生命 +2</button>
+                <button class="btn-action card-button" onclick="chooseCard('multishot')">🎯 多發射 1 發子彈</button>
+            </div>
         </div>
 
         <!-- 控制與設定面板 -->
@@ -405,11 +459,16 @@
         let gameState = 'START'; 
         let foodCount = 2;
         let currentWave = 1;
+        let endlessMode = false;
+        let killCount = 0;
+        let animalHealthBonus = 0;
+        let extraProjectiles = 0;
 
         // 陣列管理
         let grid = []; 
         let units = []; 
         let monkeys = []; 
+        let defeatedMonkeys = [];
         let projectiles = []; 
         let particles = []; 
 
@@ -464,8 +523,13 @@
         function startGame() {
             foodCount = 2;
             currentWave = 1;
+            endlessMode = false;
+            killCount = 0;
+            animalHealthBonus = 0;
+            extraProjectiles = 0;
             units = [];
             monkeys = [];
+            defeatedMonkeys = [];
             projectiles = [];
             particles = [];
             rabbitCooldown = 0;
@@ -487,6 +551,7 @@
             startWave(currentWave);
             
             document.getElementById('overlay').classList.add('hidden');
+            document.getElementById('endless-btn').classList.add('hidden');
             updateUI();
         }
 
@@ -495,12 +560,55 @@
 
         function startWave(waveNum) {
             currentWave = waveNum;
-            currentWaveSpawnLeft = waveConfigs[waveNum - 1].count;
+            const config = getWaveConfig(waveNum);
+            currentWaveSpawnLeft = config.count;
             spawnCounter = 0;
             nobleSpawnedInWave = false;
             kingSpawnedInWave = false;
             document.getElementById('wave-transition').classList.add('hidden');
-            updateStatus(`第 ${waveNum} 回合防守中...`);
+            document.getElementById('card-choice').classList.add('hidden');
+            if (waveNum === 10 || waveNum === 15 || waveNum === 20) {
+                updateStatus(`⚠️ Boss 出現！第 ${waveNum} 回合`);
+            } else {
+                updateStatus(`第 ${waveNum} 回合防守中...`);
+            }
+        }
+
+        function getWaveConfig(waveNum) {
+            if (waveConfigs[waveNum - 1]) return waveConfigs[waveNum - 1];
+
+            return {
+                count: 70 + (waveNum - 20) * 8,
+                interval: Math.max(20, 40 - (waveNum - 20)),
+                speed: 3 + (waveNum - 20) * 0.12
+            };
+        }
+
+        function startEndlessMode() {
+            endlessMode = true;
+            gameState = 'PLAYING';
+            document.getElementById('overlay').classList.add('hidden');
+            currentWave++;
+            startWave(currentWave);
+            updateUI();
+        }
+
+        function chooseCard(cardType) {
+            if (gameState !== 'CARD_SELECT') return;
+
+            if (cardType === 'health') {
+                animalHealthBonus += 2;
+                units.forEach(unit => {
+                    unit.maxHp += 2;
+                    unit.hp += 2;
+                });
+            } else if (cardType === 'multishot') {
+                extraProjectiles++;
+            }
+
+            document.getElementById('card-choice').classList.add('hidden');
+            gameState = 'WAVE_CLEAR';
+            wavePauseTimer = 1;
         }
 
         function summonUnit(type) {
@@ -627,8 +735,8 @@
                                 x: boardStartX + c * COL_WIDTH + COL_WIDTH / 2,
                                 y: r * ROW_HEIGHT + ROW_HEIGHT / 2,
                                 timer: 0,
-                                hp: selectedType === 'capybara' ? 15 : 3,
-                                maxHp: selectedType === 'capybara' ? 15 : 3
+                                hp: (selectedType === 'capybara' ? 15 : 3) + animalHealthBonus,
+                                maxHp: (selectedType === 'capybara' ? 15 : 3) + animalHealthBonus
                             };
 
                             grid[r][c] = unit;
@@ -682,24 +790,33 @@
                 // 1. 處理猴子生成
                 if (currentWaveSpawnLeft > 0) {
                     spawnCounter++;
-                    const config = waveConfigs[currentWave - 1];
+                    const config = getWaveConfig(currentWave);
                     if (spawnCounter >= config.interval) {
                         spawnCounter = 0;
                         currentWaveSpawnLeft--;
                         spawnMonkey(config.speed);
                     }
                 } else if (monkeys.length === 0 && currentWaveSpawnLeft === 0) {
-                    if (currentWave < waveConfigs.length) {
-                        gameState = 'WAVE_CLEAR';
-                        wavePauseTimer = 120;
+                    if (endlessMode || currentWave < waveConfigs.length) {
+                        const needsCard = endlessMode && currentWave % 10 === 0;
+                        gameState = needsCard ? 'CARD_SELECT' : 'WAVE_CLEAR';
+                        wavePauseTimer = needsCard ? 0 : 120;
                         const nextWave = currentWave + 1;
                         document.getElementById('wave-transition').innerText =
                             `第 ${currentWave} 回合完成！\n下一回合：第 ${nextWave} 回合`;
-                        document.getElementById('wave-transition').classList.remove('hidden');
+                        if (needsCard) {
+                            document.getElementById('card-choice').classList.remove('hidden');
+                        } else {
+                            document.getElementById('wave-transition').classList.remove('hidden');
+                        }
                         updateStatus(`第 ${currentWave} 回合防守成功！`);
                     } else {
                         gameState = 'VICTORY';
-                        showOverlay('🎉 勝利！', '太棒了！你成功守住了動物園的美食，擊退了所有猴子大軍！');
+                        showOverlay(
+                            '🎉 勝利！',
+                            '太棒了！你成功守住了動物園的美食，擊退了所有猴子大軍！',
+                            '🐵 猴子：「嗚嗚……這次是我們輸了。」<br>🦁 獅子：「只要不再來搶食物，我們可以和平相處。」<br>🐰 兔子：「大家一起分享食物吧！」<br>🐘 大象：「動物保衛戰，勝利！」'
+                        );
                     }
                 }
 
@@ -718,30 +835,26 @@
                                 foodCount++;
                                 createParticles(unit.x, unit.y, '#8BC34A', 15);
                             } else if (unit.type === 'lion') {
-                                projectiles.push({
-                                    x: unit.x + 20,
-                                    y: unit.y,
-                                    row: unit.row,
-                                    speed: 6,
-                                    damage: 1
-                                });
+                                for (let shot = 0; shot <= extraProjectiles; shot++) {
+                                    projectiles.push({
+                                        x: unit.x + 20,
+                                        y: unit.y + (shot - extraProjectiles / 2) * 8,
+                                        row: unit.row,
+                                        speed: 6,
+                                        damage: 1
+                                    });
+                                }
                             } else if (unit.type === 'cat') {
-                                projectiles.push({
-                                    x: unit.x + 20,
-                                    y: unit.y - 8,
-                                    row: unit.row,
-                                    speed: 7,
-                                    damage: 1,
-                                    isApple: true
-                                });
-                                projectiles.push({
-                                    x: unit.x + 20,
-                                    y: unit.y + 8,
-                                    row: unit.row,
-                                    speed: 7,
-                                    damage: 1,
-                                    isApple: true
-                                });
+                                for (let shot = 0; shot < 2 + extraProjectiles; shot++) {
+                                    projectiles.push({
+                                        x: unit.x + 20,
+                                        y: unit.y + (shot - (1 + extraProjectiles / 2)) * 8,
+                                        row: unit.row,
+                                        speed: 7,
+                                        damage: 1,
+                                        isApple: true
+                                    });
+                                }
                             }
                         }
                     } else if (unit.type === 'capybara') {
@@ -751,34 +864,29 @@
                         if (unit.timer >= (unit.type === 'elephant' ? elephantFrames : dogFrames)) {
                             unit.timer = 0;
                             if (unit.type === 'elephant') {
-                                projectiles.push({
-                                    x: unit.x + 20,
-                                    y: unit.y,
-                                    row: unit.row,
-                                    speed: 5,
-                                    damage: 3,
-                                    isWatermelon: true,
-                                    hitMonkeys: new Set()
-                                });
+                                for (let shot = 0; shot <= extraProjectiles; shot++) {
+                                    projectiles.push({
+                                        x: unit.x + 20,
+                                        y: unit.y + (shot - extraProjectiles / 2) * 8,
+                                        row: unit.row,
+                                        speed: 5,
+                                        damage: 3,
+                                        isWatermelon: true,
+                                        hitMonkeys: new Set()
+                                    });
+                                }
                             } else {
-                                projectiles.push({
-                                    x: unit.x + 20,
-                                    y: unit.y - 8,
-                                    row: unit.row,
-                                    speed: 7,
-                                    damage: 1,
-                                    isBone: true,
-                                    hitMonkeys: new Set()
-                                });
-                                projectiles.push({
-                                    x: unit.x + 20,
-                                    y: unit.y + 8,
-                                    row: unit.row,
-                                    speed: 7,
-                                    damage: 1,
-                                    isBone: true,
-                                    hitMonkeys: new Set()
-                                });
+                                for (let shot = 0; shot < 2 + extraProjectiles; shot++) {
+                                    projectiles.push({
+                                        x: unit.x + 20,
+                                        y: unit.y + (shot - (1 + extraProjectiles / 2)) * 8,
+                                        row: unit.row,
+                                        speed: 7,
+                                        damage: 1,
+                                        isBone: true,
+                                        hitMonkeys: new Set()
+                                    });
+                                }
                             }
                         }
                     }
@@ -809,6 +917,24 @@
                             if (m.hp <= 0) {
                                 createParticles(m.x, m.y, '#795548', 20);
                                 monkeys.splice(j, 1);
+                                defeatedMonkeys.push({
+                                    x: m.x,
+                                    y: m.y,
+                                    emoji: m.isKing
+                                        ? '🐵👑🏆'
+                                        : (m.isNoble
+                                            ? '🐵👑'
+                                            : (m.isBig
+                                                ? '🦍'
+                                                : (m.isSmall
+                                                    ? '🙊'
+                                                    : (m.isSpeedy ? '🐒💨' : (m.isHat ? '🐒🎩' : '🐵'))))),
+                                    life: 36,
+                                    maxLife: 36,
+                                    rotation: 0,
+                                    spin: m.isBig ? 0.08 : 0.14
+                                });
+                                killCount++;
                             }
                             if (!proj.isWatermelon && !proj.isBone) break;
                         }
@@ -823,7 +949,7 @@
                         m.timer++;
                         if (m.timer >= 60) {
                             m.timer = 0;
-                            spawnNobleMonkey(waveConfigs[currentWave - 1].speed);
+                            spawnNobleMonkey(getWaveConfig(currentWave).speed);
                         }
                     }
 
@@ -856,7 +982,11 @@
                     if (m.x <= 60) {
                         m.isInvisible = false;
                         gameState = 'GAMEOVER';
-                        showOverlay('💥 遊戲失敗', '猴子突破防線搶走了食物！再接再厲！');
+                        showOverlay(
+                            '💥 遊戲失敗',
+                            '猴子突破防線搶走了食物！再接再厲！',
+                            '🐵 猴子：「嘿嘿！這次是我們贏了！」<br>🐶 狗狗：「別灰心，我們下次一定會守住！」<br>🦁 獅子：「重新集結，再戰一場！」<br>🐘 大象：「下一次，我們會準備得更充分！」'
+                        );
                         break;
                     }
                 }
@@ -878,6 +1008,14 @@
                 if (p.life <= 0) particles.splice(i, 1);
             }
 
+            for (let i = defeatedMonkeys.length - 1; i >= 0; i--) {
+                const defeated = defeatedMonkeys[i];
+                defeated.life--;
+                defeated.y -= 1.5;
+                defeated.rotation += defeated.spin;
+                if (defeated.life <= 0) defeatedMonkeys.splice(i, 1);
+            }
+
             updateUI();
         }
 
@@ -893,7 +1031,7 @@
             let isInvisible = false;
             let isKing = false;
 
-            if (currentWave === 20 && !kingSpawnedInWave) {
+            if ((currentWave === 20 || (endlessMode && currentWave % 10 === 0)) && !kingSpawnedInWave) {
                 isKing = true;
                 kingSpawnedInWave = true;
             } else if ((currentWave === 10 || currentWave === 15) && !nobleSpawnedInWave) {
@@ -961,6 +1099,9 @@
             let hasNobleOnField = monkeys.some(m => m.isNoble);
             if (!isKing && !isSpeedy && !isNoble && hasNobleOnField) {
                 hp += 3;
+            }
+            if (endlessMode && currentWave % 5 === 0) {
+                hp += 5;
             }
 
             monkeys.push({
@@ -1035,16 +1176,24 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             const boardStartX = 120;
+            const timePhase = Math.floor((currentWave - 1) / 5) % 4;
+            const backgrounds = [
+                { panel: '#d7ccc8', panelText: '#3e2723', laneA: '#388e3c', laneB: '#2e7d32' },
+                { panel: '#ffb74d', panelText: '#4e342e', laneA: '#558b2f', laneB: '#33691e' },
+                { panel: '#263238', panelText: '#eceff1', laneA: '#1b5e20', laneB: '#104516' },
+                { panel: '#90caf9', panelText: '#0d47a1', laneA: '#43a047', laneB: '#2e7d32' }
+            ];
+            const background = backgrounds[timePhase];
             
-            ctx.fillStyle = '#d7ccc8';
+            ctx.fillStyle = background.panel;
             ctx.fillRect(0, 0, boardStartX, canvas.height);
-            ctx.fillStyle = '#3e2723';
+            ctx.fillStyle = background.panelText;
             ctx.font = 'bold 14px Microsoft JhengHei';
             ctx.textAlign = 'center';
             ctx.fillText('🍕 食物防線', boardStartX / 2, 30);
 
             for (let r = 0; r < ROWS; r++) {
-                ctx.fillStyle = r % 2 === 0 ? '#388e3c' : '#2e7d32';
+                ctx.fillStyle = r % 2 === 0 ? background.laneA : background.laneB;
                 ctx.fillRect(boardStartX, r * ROW_HEIGHT, canvas.width - boardStartX, ROW_HEIGHT);
 
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
@@ -1068,12 +1217,29 @@
                 ctx.stroke();
             }
 
+            const idleTime = performance.now() / 1000;
             units.forEach(u => {
+                const phase = u.row * 0.9 + u.col * 0.45;
+                const idleMotion = {
+                    rabbit: { height: 3, speed: 3.2, tilt: 0.03 },
+                    lion: { height: 2, speed: 2.2, tilt: 0.02 },
+                    capybara: { height: 1, speed: 1.7, tilt: 0.01 },
+                    cat: { height: 3, speed: 2.8, tilt: 0.04 },
+                    elephant: { height: 2, speed: 1.4, tilt: 0.015 },
+                    dog: { height: 3, speed: 3.8, tilt: 0.06 }
+                }[u.type] || { height: 2, speed: 2, tilt: 0.02 };
+                const idleOffset = Math.sin(idleTime * idleMotion.speed + phase) * idleMotion.height;
+                const idleTilt = Math.sin(idleTime * idleMotion.speed + phase) * idleMotion.tilt;
+                const displayY = u.y + idleOffset;
+
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.beginPath();
-                ctx.arc(u.x, u.y + 15, 20, 0, Math.PI * 2);
+                ctx.arc(u.x, u.y + 15, 20 - idleOffset * 0.4, 0, Math.PI * 2);
                 ctx.fill();
 
+                ctx.save();
+                ctx.translate(u.x, displayY);
+                ctx.rotate(idleTilt);
                 ctx.font = '36px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -1083,7 +1249,8 @@
                 if (u.type === 'cat') emoji = '🐱';
                 if (u.type === 'elephant') emoji = '🐘';
                 if (u.type === 'dog') emoji = '🐶';
-                ctx.fillText(emoji, u.x, u.y);
+                ctx.fillText(emoji, 0, 0);
+                ctx.restore();
 
                 if (u.type === 'rabbit' || u.type === 'lion' || u.type === 'cat' || u.type === 'elephant' || u.type === 'dog') {
                     // 進度條
@@ -1101,30 +1268,45 @@
                     const barWidth = 40, barHeight = 4;
                     const progress = Math.min(1, u.timer / maxIntervalFrames);
                     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth, barHeight);
+                    ctx.fillRect(u.x - barWidth / 2, displayY - 28, barWidth, barHeight);
                     ctx.fillStyle = u.type === 'rabbit'
                         ? '#8BC34A'
                         : (u.type === 'elephant' ? '#795548' : (u.type === 'dog' ? '#8D6E63' : '#FF9800'));
-                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth * progress, barHeight);
+                    ctx.fillRect(u.x - barWidth / 2, displayY - 28, barWidth * progress, barHeight);
                 } else if (u.type === 'capybara') {
                     // 水豚血量條
                     const barWidth = 40, barHeight = 4;
                     const hpRatio = u.hp / u.maxHp;
                     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth, barHeight);
+                    ctx.fillRect(u.x - barWidth / 2, displayY - 28, barWidth, barHeight);
                     ctx.fillStyle = '#4CAF50';
-                    ctx.fillRect(u.x - barWidth / 2, u.y - 28, barWidth * hpRatio, barHeight);
+                    ctx.fillRect(u.x - barWidth / 2, displayY - 28, barWidth * hpRatio, barHeight);
                 }
             });
 
+            const monkeyAnimationTime = performance.now() / 1000;
             monkeys.forEach(m => {
                 if (m.isInvisible) return;
 
+                const sneakyPhase = m.row * 1.3 + m.x * 0.025;
+                const sneakySpeed = m.isSpeedy ? 9 : (m.isKing ? 1.2 : 3.5);
+                const sneakyOffset = Math.sin(monkeyAnimationTime * sneakySpeed + sneakyPhase) * (m.isKing ? 1 : 4);
+                const sneakyTilt = Math.sin(monkeyAnimationTime * sneakySpeed * 0.8 + sneakyPhase) * 0.08;
+                const displayY = m.y + sneakyOffset;
+                const shadowScale = 1 - Math.abs(sneakyOffset) * 0.025;
+
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
                 ctx.beginPath();
-                ctx.arc(m.x, m.y + 15, 18, 0, Math.PI * 2);
+                ctx.save();
+                ctx.translate(m.x, m.y + 15);
+                ctx.scale(shadowScale, shadowScale);
+                ctx.arc(0, 0, 18, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.restore();
 
+                ctx.save();
+                ctx.translate(m.x, displayY);
+                ctx.rotate(sneakyTilt);
                 ctx.font = '36px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -1144,14 +1326,31 @@
                 } else if (m.isHat) {
                     monkeyEmoji = '🐒🎩';
                 }
-                ctx.fillText(monkeyEmoji, m.x, m.y);
+                ctx.fillText(monkeyEmoji, 0, 0);
+                ctx.restore();
 
                 const barWidth = 35, barHeight = 5;
                 const hpRatio = m.hp / m.maxHp;
                 ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.fillRect(m.x - barWidth / 2, m.y - 26, barWidth, barHeight);
+                ctx.fillRect(m.x - barWidth / 2, displayY - 26, barWidth, barHeight);
                 ctx.fillStyle = '#f44336';
-                ctx.fillRect(m.x - barWidth / 2, m.y - 26, barWidth * hpRatio, barHeight);
+                ctx.fillRect(m.x - barWidth / 2, displayY - 26, barWidth * hpRatio, barHeight);
+            });
+
+            defeatedMonkeys.forEach(defeated => {
+                const progress = 1 - defeated.life / defeated.maxLife;
+                const opacity = defeated.life / defeated.maxLife;
+                const scale = 1 + progress * 0.45;
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                ctx.translate(defeated.x, defeated.y);
+                ctx.rotate(defeated.rotation);
+                ctx.scale(scale, scale);
+                ctx.font = '36px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(defeated.emoji, 0, 0);
+                ctx.restore();
             });
 
             projectiles.forEach(p => {
@@ -1172,6 +1371,7 @@
         function updateUI() {
             document.getElementById('ui-wave').innerText = currentWave;
             document.getElementById('ui-food').innerText = foodCount;
+            document.getElementById('ui-kills').innerText = killCount;
 
             const btnRabbit = document.getElementById('btn-rabbit');
             const btnLion = document.getElementById('btn-lion');
@@ -1236,11 +1436,15 @@
             document.getElementById('ui-status').innerText = text;
         }
 
-        function showOverlay(title, desc) {
+        function showOverlay(title, desc, dialogue) {
             const overlay = document.getElementById('overlay');
             document.getElementById('overlay-title').innerText = title;
             document.getElementById('overlay-desc').innerHTML = desc;
+            if (dialogue) {
+                document.getElementById('opening-dialogue').innerHTML = dialogue;
+            }
             document.getElementById('overlay-btn').innerText = '重新開始';
+            document.getElementById('endless-btn').classList.toggle('hidden', title !== '🎉 勝利！');
             overlay.classList.remove('hidden');
         }
 
